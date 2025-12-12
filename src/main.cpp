@@ -84,7 +84,11 @@ void doTask()
     doc["ts"] = now;
     doc["temp"] = tah.temperature;
     doc["humi"] = tah.humidity;
+    doc["rZero"] = rZero;
+    doc["correctedRZero"] = correctedRZero;
+    doc["resistance"] = resistance;
     doc["ppm"] = ppm;
+    doc["correctedPPM"] = correctedPPM;
 
     String buf;
     serializeJson(doc, buf);
