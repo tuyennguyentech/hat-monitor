@@ -1,92 +1,229 @@
 #include <Arduino.h>
 #include <WiFi.h>
+#include <MQ135.h>
+#include <DHT11.h>
+#include <Task.h>
+#include <time.h>
+#include <PubSubClient.h>
+#include <ArduinoJson.h>
 
-#define LED_PIN 2
+#define DHTPIN 4
+#define DHTTYPE DHT11
 
-const char* ssid = "Tuyen Bao Tung";
-const char* password = "@tuyenbaotung123";
+#define PIN_MQ135 34
 
-void setup() {
-  pinMode(LED_PIN, OUTPUT);
+MQ135 mq135_sensor(PIN_MQ135, 275);
+
+String ssid = "iot_network";
+String passphrase = "@Iotnet914";
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+const char *mqttServer = "192.168.137.1";
+uint16_t const mqttPort = 1883;
+const char *mqttTopic = "iot/hat";
+
+const char *ntpServer = "time.google.com";
+long const gmtOffset_sec = 0;
+int const daylightOffset_sec = 0;
+
+void doTask();
+void setupWiFi();
+void readAirQuality(float temp, float humi, float &rZero, float &correctedRZero, float &resistance, float &ppm, float &correctedPPM);
+void printAirQuality(float rZero, float correctedRZero, float resistance, float ppm, float correctedPPM);
+unsigned long getEpochTime();
+void reconnectMQTT();
+void callback(char* topic, byte* payload, unsigned int length);
+
+void setup()
+{
   Serial.begin(115200);
-  Serial.println("Hello ESP32 CH340!");
 
+  analogReadResolution(10);
+  analogSetAttenuation(ADC_11db);
+  setupWiFi();
+  setupDht11(DHTPIN);
+  initTask();
+  taskEnabled = true;
+  client.setServer(mqttServer, mqttPort);
+  client.setCallback(callback);
+  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+}
+
+void loop()
+{
+  yield();
+}
+
+void doTask()
+{
+  if (WiFi.status() == WL_CONNECTED)
+  {
+    if (!client.connected()) {
+      reconnectMQTT();
+    }
+    client.loop();
+
+    TempAndHumidity tah = getDht11TempAndHumi();
+    Serial.println("Temp: " + String(tah.temperature) + " °C, "
+    "Humi: " +
+    String(tah.humidity));
+    float rZero;
+    float correctedRZero;
+    float resistance;
+    float ppm;
+    float correctedPPM;
+    readAirQuality(tah.temperature, tah.humidity, rZero, correctedRZero, resistance, ppm, correctedPPM);
+    unsigned long now = getEpochTime();
+    if (now < 100000) {
+      Serial.println("NTP is not available, skip...");
+      // return;
+    }
+    JsonDocument doc;
+    doc["ts"] = now;
+    doc["temp"] = tah.temperature;
+    doc["humi"] = tah.humidity;
+    doc["ppm"] = ppm;
+
+    String buf;
+    serializeJson(doc, buf);
+    Serial.println(buf);
+    if (client.publish(mqttTopic, buf.c_str())) {
+      Serial.print(">> Gui MQTT: ");
+      Serial.println(buf);
+    } else {
+      Serial.println("!! Gui MQTT THAT BAI");
+    }
+    client.subscribe(mqttTopic);
+  }
+  else
+  {
+    Serial.println("WiFi Disconnected");
+  }
+}
+
+String translateEncryptionType(wifi_auth_mode_t encryptionType)
+{
+  switch (encryptionType)
+  {
+  case (WIFI_AUTH_OPEN):
+    return "Open";
+  case (WIFI_AUTH_WEP):
+    return "WEP";
+  case (WIFI_AUTH_WPA_PSK):
+    return "WPA_PSK";
+  case (WIFI_AUTH_WPA2_PSK):
+    return "WPA2_PSK";
+  case (WIFI_AUTH_WPA_WPA2_PSK):
+    return "WPA_WPA2_PSK";
+  case (WIFI_AUTH_WPA2_ENTERPRISE):
+    return "WPA2_ENTERPRISE";
+  default:
+    return "Unknown";
+  }
+}
+
+void setupWiFi()
+{
   WiFi.mode(WIFI_STA);
   WiFi.disconnect();
   delay(100);
-
-  // --- PHẦN 1: LIỆT KÊ (SCAN) WIFI ---
-  Serial.println("\n--- BAT DAU SCAN WIFI ---");
   int n = WiFi.scanNetworks();
-
-  if (n == 0) {
-    Serial.println("Khong tim thay mang WiFi nao!");
-  } else {
-    Serial.print("Tim thay ");
+  Serial.println("Scan done");
+  if (n == 0)
+  {
+    Serial.println("no networks found");
+  }
+  else
+  {
     Serial.print(n);
-    Serial.println(" mang:");
+    Serial.println(" networks found");
+    Serial.println("------------------------------------------------");
+    Serial.printf("%-32s | %-10s | %-5s\n", "SSID", "AUTH", "RSSI");
+    Serial.println("------------------------------------------------");
 
-    for (int i = 0; i < n; ++i) {
-      // In ra: [Số thứ tự] Tên mạng (Cường độ tín hiệu)
-      Serial.print(i + 1);
-      Serial.print(": ");
-      Serial.print(WiFi.SSID(i));
-      Serial.print(" (");
-      Serial.print(WiFi.RSSI(i));
-      Serial.println(" dBm)");
+    for (int i = 0; i < n; ++i)
+    {
+      Serial.printf("%-32s | %-10s | %d dBm\n",
+                    WiFi.SSID(i).c_str(),
+                    translateEncryptionType(WiFi.encryptionType(i)).c_str(),
+                    WiFi.RSSI(i));
       delay(10);
     }
   }
-  Serial.println("-------------------------");
-
-  // Xóa bộ nhớ scan để giải phóng RAM
+  Serial.println("");
   WiFi.scanDelete();
 
+  IPAddress dns(8, 8, 8, 8);
+  WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, dns);
 
-  // --- PHẦN 2: KẾT NỐI (CONNECT) ---
-  Serial.print("Dang ket noi vao WiFi: ");
-  Serial.println(ssid);
-
-  WiFi.begin(ssid, password);
-
-  // Vòng lặp chờ kết nối
-  // WiFi.status() trả về WL_CONNECTED khi thành công
-  int attempts = 0;
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
+  WiFi.begin(ssid, passphrase, 6);
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    delay(100);
     Serial.print(".");
-
-    // Nếu chờ quá lâu (ví dụ 20 lần = 10 giây) mà không được thì báo lỗi
-    attempts++;
-    if (attempts > 20) {
-      Serial.println("\nKet noi that bai! Kiem tra lai Mat khau hoac Ten WiFi.");
-      // Dừng luôn ở đây hoặc reset
-      return;
-    }
   }
-
-  Serial.println("");
-  Serial.println("Da ket noi thanh cong!");
-  Serial.print("Dia chi IP cua ESP32: ");
+  Serial.println(" Connected!");
+  Serial.print("IP Address: ");
   Serial.println(WiFi.localIP());
+  Serial.print("DNS IP: ");
+  Serial.println(WiFi.dnsIP());
 }
 
-void loop() {
-  digitalWrite(LED_PIN, HIGH);
-  Serial.println("LED ON");
-  delay(1000);
+void readAirQuality(float temp, float humi, float &rZero, float &correctedRZero, float &resistance, float &ppm, float &correctedPPM)
+{
+  Serial.printf("Temp = %f, Humi = %f\n", temp, humi);
+  rZero = mq135_sensor.getRZero();
+  correctedRZero = mq135_sensor.getCorrectedRZero(temp, humi);
+  resistance = mq135_sensor.getResistance();
+  ppm = mq135_sensor.getPPM();
+  correctedPPM = mq135_sensor.getCorrectedPPM(temp, humi);
+  printAirQuality(rZero, correctedRZero, resistance, ppm, correctedPPM);
+}
 
-  digitalWrite(LED_PIN, LOW);
-  Serial.println("LED OFF");
-  delay(1000);
+void printAirQuality(float rZero, float correctedRZero, float resistance, float ppm, float correctedPPM)
+{
+  Serial.print("MQ135 RZero: ");
+  Serial.print(rZero);
+  Serial.print("\t Corrected RZero: ");
+  Serial.print(correctedRZero);
+  Serial.print("\t Resistance: ");
+  Serial.print(resistance);
+  Serial.print("\t PPM: ");
+  Serial.print(ppm);
+  Serial.print("ppm");
+  Serial.print("\t Corrected PPM: ");
+  Serial.print(correctedPPM);
+  Serial.println("ppm");
+}
 
-  if(WiFi.status() == WL_CONNECTED) {
-      // Mạng ổn định, làm việc gì đó...
-  } else {
-      Serial.println("Mat ket noi WiFi!");
-      WiFi.reconnect(); // Thử kết nối lại
-      delay(5000);
+unsigned long getEpochTime() {
+  time_t now;
+  time(&now);
+  return now;
+}
+
+void reconnectMQTT() {
+  if (!client.connected()) {
+    Serial.print("Ket noi MQTT...");
+    String clientId = "ESP32-" + String(random(0xffff), HEX);
+    if (client.connect(clientId.c_str())) {
+      Serial.println("OK");
+    } else {
+      Serial.print("Loi rc=");
+      Serial.println(client.state());
+    }
   }
+}
 
-  delay(1000);
+
+void callback(char* topic, byte* payload, unsigned int length) {
+  Serial.print("<< Message arrived [");
+  Serial.print(topic);
+  Serial.print("] ");
+  for (int i=0;i<length;i++) {
+    Serial.print((char)payload[i]);
+  }
+  Serial.println();
 }
