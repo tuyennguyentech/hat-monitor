@@ -1,4 +1,4 @@
-#include <dht11.h>
+#include <DHT11.h>
 
 DHTesp dht11;
 

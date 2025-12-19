@@ -1,0 +1,13 @@
+{
+  "devDependencies": {
+    "daisyui": "^5.5.14",
+    "tailwindcss": "^4.1.18"
+  },
+  "dependencies": {
+    "@tailwindcss/cli": "^4.1.18"
+  },
+  "scripts": {
+    "build": "pnpm dlx @tailwindcss/cli -i ./rust/style/input.css -o ./rust/style/output.css",
+    "watch": "pnpm dlx @tailwindcss/cli -i ./rust/style/input.css -o ./rust/style/output.css --watch"
+  }
+}
