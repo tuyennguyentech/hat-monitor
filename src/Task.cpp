@@ -20,7 +20,7 @@ bool initTask()
     Serial.println("Failed to start task");
     return false;
   }
-  ticker.attach(2, triggerTask);
+  ticker.attach(5, triggerTask);
   return true;
 }
 
