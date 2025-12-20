@@ -54,7 +54,7 @@ fn HomePage() -> impl IntoView {
 
   view! {
     <div class="flex flex-col items-center justify-center h-screen bg-base-100 gap-8">
-      <h1 class="text-5xl font-black bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
+      <h1 class="text-5xl font-black bg-clip-text text-transparent bg-linear-to-r from-primary to-secondary">
         "Leptos Counter"
       </h1>
 
