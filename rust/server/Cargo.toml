@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 app = { path = "../app", default-features = false, features = ["ssr"] }
+types = { path = "../types"}
 leptos = { workspace = true, features = [ "ssr" ]}
 leptos_axum.workspace = true
 
@@ -19,5 +20,5 @@ log.workspace = true
 rumqttc = "0.25.1"
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
-serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.145"
+serde.workspace = true
+serde_json.workspace = true

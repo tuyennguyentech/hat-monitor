@@ -12,7 +12,7 @@
 
 #define PIN_MQ135 34
 
-MQ135 mq135_sensor(PIN_MQ135, 275);
+MQ135 mq135_sensor(PIN_MQ135);
 
 String ssid = "iot_network";
 String passphrase = "@Iotnet914";
@@ -81,14 +81,14 @@ void doTask()
       // return;
     }
     JsonDocument doc;
-    doc["ts"] = now;
-    doc["temp"] = tah.temperature;
-    doc["humi"] = tah.humidity;
-    doc["rZero"] = rZero;
-    doc["correctedRZero"] = correctedRZero;
+    doc["timestamp"] = now;
+    doc["temperature"] = tah.temperature;
+    doc["humidity"] = tah.humidity;
+    doc["r_zero"] = rZero;
+    doc["corrected_r_zero"] = correctedRZero;
     doc["resistance"] = resistance;
     doc["ppm"] = ppm;
-    doc["correctedPPM"] = correctedPPM;
+    doc["corrected_ppm"] = correctedPPM;
 
     String buf;
     serializeJson(doc, buf);
