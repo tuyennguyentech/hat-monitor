@@ -15,5 +15,9 @@
     "comments": "on",
     "strings": true
   },
-  "css.validate": false
+  "css.validate": false,
+  "[rust]": {
+    "editor.tabSize": 2,
+    "editor.detectIndentation": false
+  },
 }

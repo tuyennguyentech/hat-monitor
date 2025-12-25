@@ -18,6 +18,7 @@ cfg-if.workspace = true
 thiserror.workspace = true
 chrono.workspace = true
 leptos-use = "0.17.0"
+charming = { workspace = true, features = ["wasm"] }
 
 [features]
 default = []
