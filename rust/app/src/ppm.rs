@@ -53,14 +53,14 @@ pub fn Ppm(sample: Signal<Option<HatSample>>) -> impl IntoView {
         format!("stat-value {}", ppm_class())
       }>
         {move || match sample.get() {
-          Some(s) => format!("{:.0} PPM", s.corrected_ppm),
+          Some(s) => format!("{:.1} PPM", s.corrected_ppm),
           None => "--".to_string(),
         }}
       </div>
       // Hiển thị thêm thông số kỹ thuật (Resistance) ở phần mô tả
       <div class="stat-desc text-xs">
         {move || match sample.get() {
-          Some(s) => format!("R: {:.0} Ω | R0: {:.0} Ω", s.resistance, s.corrected_r_zero),
+          Some(s) => format!("R: {:.1} Ω | R0: {:.1} Ω", s.resistance, s.corrected_r_zero),
           None => "Đang hiệu chuẩn...".to_string(),
         }}
       </div>
@@ -95,11 +95,23 @@ pub fn Graph(sample: Signal<Option<HatSample>>) -> impl IntoView {
         Line::new()
           .smooth(true)
           .symbol(Symbol::Circle)
-          // .line_style(LineStyle::new().width(5).color("#5470C6"))
-          // .area_style(AreaStyle::new())
           .data(data),
       );
-    WasmRenderer::new(800, 400).render("ppm-chart", &chart).unwrap();
+    let id = "ppm-chart";
+    let mut width = 800;
+    let mut height = 400;
+
+    if let Some(element) = document().get_element_by_id(id) {
+      if element.client_width() > 0 {
+        width = element.client_width() as u32;
+      }
+      if element.client_height() > 0 {
+        height = element.client_height() as u32;
+      }
+    }
+    WasmRenderer::new(width, height)
+      .render(id, &chart)
+      .unwrap();
   });
   view! {
     // Container chính: Card giao diện, căn giữa, đổ bóng
@@ -138,8 +150,8 @@ pub fn Graph(sample: Signal<Option<HatSample>>) -> impl IntoView {
         // --- Phần chứa biểu đồ ---
         // w-full để chart co giãn theo card
         // h-[400px] để giữ chiều cao cố định, tránh nhảy layout khi load
-        <div class="w-full h-400px rounded-lg overflow-hidden bg-base-100 relative">
-          <div id="ppm-chart" class="w-full h-full"></div>
+        <div class="ww-full flex justify-center">
+          <div id="ppm-chart" class="w-full h-100"></div>
         </div>
       </div>
     </div>

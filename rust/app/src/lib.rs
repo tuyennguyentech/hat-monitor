@@ -79,7 +79,7 @@ fn Monitor() -> impl IntoView {
     message,
     ready_state,
     ..
-  } = use_websocket::<HatSample, HatSample, JsonSerdeCodec>("ws://localhost:3000/ws");
+  } = use_websocket::<HatSample, HatSample, JsonSerdeCodec>("ws://192.168.137.1:3000/ws");
 
   view! {
     <div class="p-4 flex flex-col flex-wrap items-center gap-6 w-full">

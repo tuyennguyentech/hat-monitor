@@ -1,7 +1,10 @@
 use std::collections::VecDeque;
 
 use charming::{
-  Chart, WasmRenderer, component::Axis, element::{AxisType, Symbol}, series::Line
+  component::Axis,
+  element::{AxisType, Symbol},
+  series::Line,
+  Chart, WasmRenderer,
 };
 use leptos::prelude::*;
 use types::HatSample;
@@ -57,7 +60,6 @@ pub fn Temperature(sample: Signal<Option<HatSample>>) -> impl IntoView {
         </div>
         <div class="stat-desc">"Ngưỡng an toàn: 20-30°C"</div>
       </div>
-    // <Graph sample=temp_and_ts />
     </div>
   }
 }
@@ -89,11 +91,23 @@ pub fn Graph(sample: Signal<Option<HatSample>>) -> impl IntoView {
         Line::new()
           .smooth(true)
           .symbol(Symbol::Circle)
-          // .line_style(LineStyle::new().width(5).color("#5470C6"))
-          // .area_style(AreaStyle::new())
           .data(data),
       );
-    WasmRenderer::new(800, 400).render("temperature-chart", &chart).unwrap();
+    let id = "temperature-chart";
+    let mut width = 800;
+    let mut height = 400;
+
+    if let Some(element) = document().get_element_by_id(id) {
+      if element.client_width() > 0 {
+        width = element.client_width() as u32;
+      }
+      if element.client_height() > 0 {
+        height = element.client_height() as u32;
+      }
+    }
+    WasmRenderer::new(width, height)
+      .render(id, &chart)
+      .unwrap();
   });
   view! {
     // Container chính: Card giao diện, căn giữa, đổ bóng
@@ -132,8 +146,8 @@ pub fn Graph(sample: Signal<Option<HatSample>>) -> impl IntoView {
         // --- Phần chứa biểu đồ ---
         // w-full để chart co giãn theo card
         // h-[400px] để giữ chiều cao cố định, tránh nhảy layout khi load
-        <div class="w-full h-400px rounded-lg overflow-hidden bg-base-100 relative">
-          <div id="temperature-chart" class="w-full h-full"></div>
+        <div class="w-full flex justify-center">
+          <div id="temperature-chart" class="w-full h-100"></div>
         </div>
       </div>
     </div>

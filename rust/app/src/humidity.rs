@@ -69,12 +69,22 @@ pub fn Graph(sample: Signal<Option<HatSample>>) -> impl IntoView {
         Line::new()
           .smooth(true)
           .symbol(Symbol::Circle)
-          // .line_style(LineStyle::new().width(5).color("#5470C6"))
-          // .area_style(AreaStyle::new())
           .data(data),
       );
-    WasmRenderer::new(800, 400)
-      .render("humidity-chart", &chart)
+    let id = "humidity-chart";
+    let mut width = 800;
+    let mut height = 400;
+
+    if let Some(element) = document().get_element_by_id(id) {
+      if element.client_width() > 0 {
+        width = element.client_width() as u32;
+      }
+      if element.client_height() > 0 {
+        height = element.client_height() as u32;
+      }
+    }
+    WasmRenderer::new(width, height)
+      .render(id, &chart)
       .unwrap();
   });
   view! {
@@ -114,8 +124,8 @@ pub fn Graph(sample: Signal<Option<HatSample>>) -> impl IntoView {
         // --- Phần chứa biểu đồ ---
         // w-full để chart co giãn theo card
         // h-[400px] để giữ chiều cao cố định, tránh nhảy layout khi load
-        <div class="w-full h-400px rounded-lg overflow-hidden bg-base-100 relative">
-          <div id="humidity-chart" class="w-full h-full"></div>
+        <div class="w-full flex justify-center">
+          <div id="humidity-chart" class="w-full h-100"></div>
         </div>
       </div>
     </div>
